@@ -1,0 +1,97 @@
+package Scheduling_algos;
+
+import java.util.Scanner;
+
+class Process {
+    int pid;   // Process ID
+    int at;    // Arrival Time
+    int bt;    // Burst Time
+    int ct;    // Completion Time
+    int tat;   // Turnaround Time
+    int wt;    // Waiting Time
+
+    Process(int pid, int at, int bt) {
+        this.pid = pid;
+        this.at = at;
+        this.bt = bt;
+    }
+}
+
+public class FCFS {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        // Input
+        System.out.print("Enter number of processes: ");
+        int n = sc.nextInt();
+        Process[] p = new Process[n];
+
+        for (int i = 0; i < n; i++) {
+            System.out.print("Enter Arrival Time for P" + (i + 1) + ": ");
+            int at = sc.nextInt();
+            System.out.print("Enter Burst Time for P" + (i + 1) + ": ");
+            int bt = sc.nextInt();
+            p[i] = new Process(i + 1, at, bt);
+        }
+
+        // Sorting by Arrival Time
+        for (int i = 0; i < n - 1; i++) {
+            for (int j = 0; j < n - i - 1; j++) {
+                if (p[j].at > p[j + 1].at) {
+                    Process temp = p[j];
+                    p[j] = p[j + 1];
+                    p[j + 1] = temp;
+                }
+            }
+        }
+
+        // Calculations
+        int currentTime = 0;
+        double totalTAT = 0, totalWT = 0;
+
+        for (int i = 0; i < n; i++) {
+            if (currentTime < p[i].at) {
+                currentTime = p[i].at;
+            }
+            p[i].ct = currentTime + p[i].bt;
+            currentTime = p[i].ct;
+
+            p[i].tat = p[i].ct - p[i].at;
+            p[i].wt = p[i].tat - p[i].bt;
+
+            totalTAT += p[i].tat;
+            totalWT += p[i].wt;
+        }
+
+        // Output
+        System.out.println("\nPID\tAT\tBT\tCT\tTAT\tWT");
+        for (int i = 0; i < n; i++) {
+            System.out.println("P" + p[i].pid + "\t" + p[i].at + "\t" + p[i].bt + "\t" +
+                               p[i].ct + "\t" + p[i].tat + "\t" + p[i].wt);
+        }
+
+        System.out.println("\nAverage Turnaround Time = " + (totalTAT / n));
+        System.out.println("Average Waiting Time = " + (totalWT / n));
+
+        sc.close();
+    }
+}
+
+
+
+INPUT
+Enter number of processes: 3
+Enter Arrival Time for P1: 2
+Enter Burst Time for P1: 4
+Enter Arrival Time for P2: 1
+Enter Burst Time for P2: 2
+Enter Arrival Time for P3: 5
+Enter Burst Time for P3: 3
+
+PID     AT      BT      CT      TAT     WT
+P1      2       4       7       5       1
+P2      1       2       3       2       0
+P3      5       3       10      5       2
+
+Average Turnaround Time = 4.00
+Average Waiting Time = 1.00
