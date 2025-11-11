@@ -1,0 +1,194 @@
+import java.util.*;
+
+public class PageReplacementSim {
+
+    static Scanner sc = new Scanner(System.in);
+
+    public static void main(String[] args) {
+        System.out.println("=== SPOS Page Replacement Algorithms Simulation ===");
+        
+        System.out.print("Enter number of frames: ");
+        int framesCount = sc.nextInt();
+
+        System.out.print("Enter length of reference string: ");
+        int n = sc.nextInt();
+
+        int[] pages = new int[n];
+        System.out.println("Enter the reference string (space-separated):");
+        for (int i = 0; i < n; i++) {
+            pages[i] = sc.nextInt();
+        }
+
+        while (true) {
+            System.out.println("\n------ MENU ------");
+            System.out.println("1. FIFO");
+            System.out.println("2. LRU");
+            System.out.println("3. Optimal");
+            System.out.println("4. Change Input Data");
+            System.out.println("5. Exit");
+            System.out.print("Enter choice: ");
+            int choice = sc.nextInt();
+
+            switch (choice) {
+                case 1:
+                    FIFO(framesCount, pages);
+                    break;
+                case 2:
+                    LRU(framesCount, pages);
+                    break;
+                case 3:
+                    Optimal(framesCount, pages);
+                    break;
+                case 4:
+                    System.out.print("Enter new number of frames: ");
+                    framesCount = sc.nextInt();
+                    System.out.print("Enter new length of reference string: ");
+                    n = sc.nextInt();
+                    pages = new int[n];
+                    System.out.println("Enter new reference string:");
+                    for (int i = 0; i < n; i++) pages[i] = sc.nextInt();
+                    break;
+                case 5:
+                    System.out.println("Exiting simulation.");
+                    sc.close();
+                    return;
+                default:
+                    System.out.println("Invalid choice! Please try again.");
+            }
+        }
+    }
+
+    // --- FIFO ALGORITHM ---
+    static void FIFO(int framesCount, int[] pages) {
+        System.out.println("\n--- FIFO Simulation ---");
+        Queue<Integer> frames = new LinkedList<>();
+        int pageFaults = 0;
+        int hits = 0;
+
+        for (int p : pages) {
+            boolean isHit = false;
+            if (frames.contains(p)) {
+                hits++;
+                isHit = true;
+            } else {
+                if (frames.size() == framesCount) {
+                    frames.poll(); // Remove the oldest element (head of queue)
+                }
+                frames.add(p);
+                pageFaults++;
+            }
+            // Optional: Print hit/miss for ease of viva explanation
+             System.out.printf("Page %2d | Frames: %-15s | %s\n", p, frames, (isHit ? "Hit" : "Miss"));
+        }
+        printStats(pageFaults, hits, pages.length);
+    }
+
+    // --- LRU ALGORITHM ---
+    static void LRU(int framesCount, int[] pages) {
+        System.out.println("\n--- LRU Simulation ---");
+        // Using ArrayList to simulate the 'stack' approach of LRU
+        // The end of the list is the Most Recently Used, index 0 is Least Recently Used.
+        ArrayList<Integer> frames = new ArrayList<>(framesCount);
+        int pageFaults = 0;
+        int hits = 0;
+
+        for (int p : pages) {
+            boolean isHit = false;
+            if (frames.contains(p)) {
+                frames.remove((Integer) p); // Remove from current position
+                frames.add(p);              // Move to end (most recent)
+                hits++;
+                isHit = true;
+            } else {
+                if (frames.size() == framesCount) {
+                    frames.remove(0);       // Remove Least Recently Used (front of list)
+                }
+                frames.add(p);
+                pageFaults++;
+            }
+            System.out.printf("Page %2d | Frames: %-15s | %s\n", p, frames, (isHit ? "Hit" : "Miss"));
+        }
+        printStats(pageFaults, hits, pages.length);
+    }
+
+    // --- OPTIMAL ALGORITHM ---
+    static void Optimal(int framesCount, int[] pages) {
+        System.out.println("\n--- Optimal Simulation ---");
+        ArrayList<Integer> frames = new ArrayList<>(framesCount);
+        int pageFaults = 0;
+        int hits = 0;
+        int n = pages.length;
+
+        for (int i = 0; i < n; i++) {
+            int p = pages[i];
+            boolean isHit = false;
+
+            if (frames.contains(p)) {
+                hits++;
+                isHit = true;
+            } else {
+                if (frames.size() < framesCount) {
+                    frames.add(p);
+                } else {
+                    // Find the page that will not be used for the longest time
+                    int indexToReplace = -1;
+                    int farthestDistance = -1;
+
+                    for (int j = 0; j < frames.size(); j++) {
+                        int currentFramePage = frames.get(j);
+                        int nextUse = -1;
+
+                        // Look ahead to find next use of this page
+                        for (int k = i + 1; k < n; k++) {
+                            if (pages[k] == currentFramePage) {
+                                nextUse = k;
+                                break;
+                            }
+                        }
+
+                        // If page is never used again, it's the best candidate to replace immediately
+                        if (nextUse == -1) {
+                            indexToReplace = j;
+                            break; 
+                        }
+
+                        // Otherwise, keep track of the one used farthest in future
+                        if (nextUse > farthestDistance) {
+                            farthestDistance = nextUse;
+                            indexToReplace = j;
+                        }
+                    }
+                    // Failsafe (should technically not be needed if logic holds, but good for exams)
+                    if (indexToReplace == -1) indexToReplace = 0;
+                    
+                    frames.set(indexToReplace, p);
+                }
+                pageFaults++;
+            }
+            System.out.printf("Page %2d | Frames: %-15s | %s\n", p, frames, (isHit ? "Hit" : "Miss"));
+        }
+        printStats(pageFaults, hits, pages.length);
+    }
+
+    static void printStats(int faults, int hits, int total) {
+        System.out.println("---------------------------------");
+        System.out.println("Total Pages: " + total);
+        System.out.println("Total Page Faults: " + faults);
+        System.out.println("Total Page Hits: " + hits);
+        double hitRatio = (double) hits / total * 100;
+        System.out.printf("Hit Ratio: %.2f%%\n", hitRatio);
+    }
+}
+
+
+INPUT
+Enter number of frames: 3
+Enter length of reference string: 12
+Enter the reference string (space-separated): 
+1 2 3 4 1 2 5 1 2 3 4 5
+
+Expected Results (for your reference):
+
+FIFO: 9 page faults
+LRU: 8 page faults
+Optimal: 7 page faults
