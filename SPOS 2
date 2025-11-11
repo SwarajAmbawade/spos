@@ -1,0 +1,238 @@
+package SWARAJ;
+// Swaraj Ambawade 23CO008
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.stream.*;
+
+public class Practical_2 {
+
+ // utility: trim
+ private static String trim(String s) {
+     if (s == null) return "";
+     return s.replaceAll("^[ \\t\\r\\n]+|[ \\t\\r\\n]+$", "");
+ }
+
+ // split tokens by whitespace keeping contiguous tokens combined
+ private static List<String> splitTokens(String s) {
+     if (s == null || s.trim().isEmpty()) return new ArrayList<>();
+     return Arrays.stream(s.trim().split("\\s+"))
+                  .filter(t -> !t.isEmpty())
+                  .collect(Collectors.toList());
+ }
+
+ // split parameter list by comma, trim each
+ private static List<String> splitParams(String s) {
+     List<String> out = new ArrayList<>();
+     if (s == null || s.trim().isEmpty()) return out;
+     String[] parts = s.split(",");
+     for (String p : parts) {
+         String t = trim(p);
+         if (!t.isEmpty()) out.add(t);
+     }
+     return out;
+ }
+
+ // replace all occurrences of target in source with replacement (simple)
+ private static String replaceAllSimple(String source, String target, String replacement) {
+     if (target.isEmpty()) return source;
+     return source.replace(target, replacement);
+ }
+
+ public static void main(String[] args) {
+     // Filenames (can be changed if needed)
+     String inputFile = "input.asm";
+     String intermediateFile = "intermediate.asm";
+     String mntFile = "MNT.txt";
+     String mdtFile = "MDT.txt";
+     String expandedFile = "expanded.asm";
+
+     // Data structures
+     // MNT: macro name -> pair(MDT start index, list of formal params)
+     Map<String, Pair<Integer, List<String>>> MNT = new LinkedHashMap<>();
+     // MDT: list of body lines (strings). We'll record lines sequentially.
+     List<String> MDT = new ArrayList<>();
+
+     // PASS-I: read input.asm, build MNT/MDT and write intermediate.asm
+     try (BufferedReader br = Files.newBufferedReader(Paths.get(inputFile));
+          PrintWriter interm = new PrintWriter(Files.newBufferedWriter(Paths.get(intermediateFile)))) {
+
+         String line;
+         boolean inMacro = false;
+         String currentMacro = null;
+         List<String> currentParams = new ArrayList<>();
+         int mdtIndex = 0;
+
+         while ((line = br.readLine()) != null) {
+             String tline = trim(line);
+             if (tline.isEmpty()) {
+                 // preserve blank lines
+                 interm.println();
+                 continue;
+             }
+
+             if ("MACRO".equals(tline)) {
+                 // start macro definition: next non-null line is header
+                 inMacro = true;
+                 String header = null;
+                 while ((header = br.readLine()) != null && trim(header).isEmpty()) {
+                     // skip blank lines between MACRO and header
+                 }
+                 if (header == null) break;
+                 String theader = trim(header);
+                 // parse header: name [params]
+                 List<String> parts = splitTokens(theader);
+                 String name = parts.size() > 0 ? parts.get(0) : "";
+                 String paramPart = "";
+                 if (parts.size() > 1) {
+                     // join remaining tokens (in case extra spaces)
+                     paramPart = String.join(" ", parts.subList(1, parts.size()));
+                 } else {
+                     // try to extract from raw header after name (handles "INCR &A,&B")
+                     int pos = theader.indexOf(name);
+                     if (pos >= 0) {
+                         paramPart = trim(theader.substring(pos + name.length()));
+                     }
+                 }
+                 List<String> params = splitParams(paramPart);
+                 // ensure param tokens keep leading '&' if present; normalize: keep as-is
+                 MNT.put(name, new Pair<>(mdtIndex, params));
+                 currentMacro = name;
+                 currentParams = params;
+                 // do NOT write macro header to intermediate
+                 continue;
+             }
+
+             if (inMacro) {
+                 if ("MEND".equals(tline)) {
+                     // store MEND marker
+                     MDT.add("MEND");
+                     mdtIndex++;
+                     inMacro = false;
+                     currentMacro = null;
+                     currentParams = new ArrayList<>();
+                     continue;
+                 } else {
+                     // process body line: replace formal parameter names with positional placeholders #1, #2...
+                     String processed = line;
+                     for (int i = 0; i < currentParams.size(); i++) {
+                         String formal = currentParams.get(i);
+                         String formalWithAmp = formal;
+                         if (!formalWithAmp.startsWith("&")) formalWithAmp = "&" + formalWithAmp;
+                         String placeholder = "#" + (i+1);
+                         // replace occurrences of &param
+                         processed = replaceAllSimple(processed, formalWithAmp, placeholder);
+                         // also attempt to replace param without & (heuristic)
+                         String noAmp = formal.startsWith("&") ? formal.substring(1) : formal;
+                         if (!noAmp.isEmpty()) {
+                             // replace only when param appears as separate token or preceded by non-alnum char
+                             // simple approach: replace all occurrences (may over-replace in contrived cases)
+                             processed = processed.replace(noAmp, placeholder);
+                         }
+                     }
+                     MDT.add(processed);
+                     mdtIndex++;
+                     continue;
+                 }
+             }
+
+             // Not in macro: copy to intermediate file
+             interm.println(line);
+         }
+
+     } catch (IOException e) {
+         System.err.println("ERROR (Pass-I): " + e.getMessage());
+         System.err.println("Make sure '" + inputFile + "' exists in working directory.");
+         return;
+     }
+
+     // Write MNT.txt and MDT.txt
+     try (PrintWriter pmnt = new PrintWriter(Files.newBufferedWriter(Paths.get(mntFile)));
+          PrintWriter pmdt = new PrintWriter(Files.newBufferedWriter(Paths.get(mdtFile)))) {
+
+         // MNT: preserve insertion order (LinkedHashMap used)
+         for (Map.Entry<String, Pair<Integer, List<String>>> entry : MNT.entrySet()) {
+             String name = entry.getKey();
+             int idx = entry.getValue().first;
+             List<String> params = entry.getValue().second;
+             pmnt.print(name + " " + idx);
+             if (!params.isEmpty()) {
+                 pmnt.print(" ");
+                 pmnt.print(String.join(",", params));
+             }
+             pmnt.println();
+         }
+
+         // MDT: index : line
+         for (int i = 0; i < MDT.size(); i++) {
+             pmdt.println(i + " : " + MDT.get(i));
+         }
+
+     } catch (IOException e) {
+         System.err.println("ERROR writing MNT/MDT: " + e.getMessage());
+         return;
+     }
+
+     // PASS-II: read intermediate.asm, expand macros using MNT & MDT, write expanded.asm
+     try (BufferedReader interReader = Files.newBufferedReader(Paths.get(intermediateFile));
+          PrintWriter expanded = new PrintWriter(Files.newBufferedWriter(Paths.get(expandedFile)))) {
+
+         String line;
+         while ((line = interReader.readLine()) != null) {
+             String tline = trim(line);
+             if (tline.isEmpty()) {
+                 expanded.println();
+                 continue;
+             }
+             List<String> tokens = splitTokens(tline);
+             if (tokens.isEmpty()) {
+                 expanded.println(line);
+                 continue;
+             }
+             String first = tokens.get(0);
+             if (MNT.containsKey(first)) {
+                 // macro invocation - parse actual parameters (rest of line after macro name)
+                 int pos = line.indexOf(first);
+                 String after = "";
+                 if (pos >= 0) after = trim(line.substring(pos + first.length()));
+                 List<String> actuals = splitParams(after);
+                 // get MDT start index and formal param list
+                 Pair<Integer, List<String>> meta = MNT.get(first);
+                 int startIdx = meta.first;
+                 List<String> formals = meta.second;
+                 // Expand from MDT starting at startIdx until MEND
+                 for (int idx = startIdx; idx < MDT.size(); idx++) {
+                     String mline = MDT.get(idx);
+                     if ("MEND".equals(trim(mline))) break;
+                     String outLine = mline;
+                     // replace placeholders #1,#2,... with actual parameters (if provided)
+                     for (int k = 0; k < formals.size(); k++) {
+                         String placeholder = "#" + (k+1);
+                         String actual = (k < actuals.size()) ? actuals.get(k) : "";
+                         outLine = replaceAllSimple(outLine, placeholder, actual);
+                     }
+                     expanded.println(outLine);
+                 }
+             } else {
+                 // not a macro – copy as-is
+                 expanded.println(line);
+             }
+         }
+
+     } catch (IOException e) {
+         System.err.println("ERROR (Pass-II): " + e.getMessage());
+         return;
+     }
+
+     // Final status (concise)
+     System.out.println("PASS-I and PASS-II completed successfully.");
+     System.out.println("Generated: " + intermediateFile + ", " + mntFile + ", " + mdtFile + ", " + expandedFile);
+ }
+
+ // small Pair utility (since Java 8 has no standard Pair)
+ private static class Pair<F, S> {
+     public final F first;
+     public final S second;
+     public Pair(F f, S s) { this.first = f; this.second = s; }
+ }
+}
