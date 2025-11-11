@@ -1,0 +1,111 @@
+package Scheduling_algos;
+
+import java.util.Scanner;
+
+class PriorityProcess {
+    int pid;   // Process ID
+    int at;    // Arrival Time
+    int bt;    // Burst Time
+    int pr;    // Priority (Lower value = Higher priority)
+    int ct;    // Completion Time
+    int tat;   // Turnaround Time
+    int wt;    // Waiting Time
+    boolean completed;
+
+    PriorityProcess(int pid, int at, int bt, int pr) {
+        this.pid = pid;
+        this.at = at;
+        this.bt = bt;
+        this.pr = pr;
+        this.completed = false;
+    }
+}
+
+public class Priority_Scheduling {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        // Input
+        System.out.print("Enter number of processes: ");
+        int n = sc.nextInt();
+        PriorityProcess[] p = new PriorityProcess[n];
+
+        for (int i = 0; i < n; i++) {
+            System.out.print("Enter Arrival Time for P" + (i + 1) + ": ");
+            int at = sc.nextInt();
+            System.out.print("Enter Burst Time for P" + (i + 1) + ": ");
+            int bt = sc.nextInt();
+            System.out.print("Enter Priority for P" + (i + 1) + " (lower number = higher priority): ");
+            int pr = sc.nextInt();
+            p[i] = new PriorityProcess(i + 1, at, bt, pr);
+        }
+
+        int currentTime = 0, completed = 0;
+        double totalTAT = 0, totalWT = 0;
+
+        while (completed < n) {
+            int idx = -1;
+            int bestPriority = Integer.MAX_VALUE;
+
+            // Pick process with highest priority (lowest priority number)
+            for (int i = 0; i < n; i++) {
+                if (!p[i].completed && p[i].at <= currentTime && p[i].pr < bestPriority) {
+                    bestPriority = p[i].pr;
+                    idx = i;
+                }
+            }
+
+            if (idx == -1) {
+                currentTime++; // No process available yet
+            } else {
+                p[idx].ct = currentTime + p[idx].bt;
+                p[idx].tat = p[idx].ct - p[idx].at;
+                p[idx].wt = p[idx].tat - p[idx].bt;
+                p[idx].completed = true;
+
+                currentTime = p[idx].ct;
+                completed++;
+
+                totalTAT += p[idx].tat;
+                totalWT += p[idx].wt;
+            }
+        }
+
+        // Output
+        System.out.println("\nPID\tAT\tBT\tPR\tCT\tTAT\tWT");
+        for (int i = 0; i < n; i++) {
+            System.out.println("P" + p[i].pid + "\t" + p[i].at + "\t" + p[i].bt + "\t" +
+                               p[i].pr + "\t" + p[i].ct + "\t" + p[i].tat + "\t" + p[i].wt);
+        }
+
+        System.out.println("\nAverage Turnaround Time = " + (totalTAT / n));
+        System.out.println("Average Waiting Time = " + (totalWT / n));
+
+        sc.close();
+    }
+}
+
+
+INPUT
+Enter number of processes: 4
+Enter Arrival Time for P1: 0
+Enter Burst Time for P1: 6
+Enter Priority for P1: 3
+Enter Arrival Time for P2: 1
+Enter Burst Time for P2: 4
+Enter Priority for P2: 1
+Enter Arrival Time for P3: 3
+Enter Burst Time for P3: 2
+Enter Priority for P3: 2
+Enter Arrival Time for P4: 5
+Enter Burst Time for P4: 3
+Enter Priority for P4: 1
+
+PID     AT      BT      PR      CT      TAT     WT
+P1      0       6       3       6       6       0
+P2      1       4       1       10      9       5
+P3      3       2       2       15      12      10
+P4      5       3       1       13      8       5
+
+Average Turnaround Time = 8.75
+Average Waiting Time = 5.00
