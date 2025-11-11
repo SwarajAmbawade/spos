@@ -1,0 +1,175 @@
+import java.util.*;
+
+public class PageReplacementAlgorithms {
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter number of frames: ");
+        int framesCount = sc.nextInt();
+
+        System.out.print("Enter number of pages: ");
+        int pagesCount = sc.nextInt();
+
+        int[] pages = new int[pagesCount];
+        System.out.println("Enter the page reference string:");
+        for (int i = 0; i < pagesCount; i++) {
+            pages[i] = sc.nextInt();
+        }
+
+        int choice;
+        do {
+            System.out.println("\n--- PAGE REPLACEMENT MENU ---");
+            System.out.println("1. FIFO");
+            System.out.println("2. LRU (Least Recently Used)");
+            System.out.println("3. MRU (Most Recently Used)");
+            System.out.println("4. Optimal");
+            System.out.println("5. Exit");
+            System.out.print("Enter your choice: ");
+            choice = sc.nextInt();
+
+            switch (choice) {
+                case 1 -> fifo(pages, framesCount);
+                case 2 -> lru(pages, framesCount);
+                case 3 -> mru(pages, framesCount);
+                case 4 -> optimal(pages, framesCount);
+                case 5 -> System.out.println("Exiting program...");
+                default -> System.out.println("Invalid choice! Please try again.");
+            }
+
+        } while (choice != 5);
+
+        sc.close();
+    }
+
+    // -------------------------------------------
+    // FIFO Page Replacement
+    // -------------------------------------------
+    public static void fifo(int[] pages, int framesCount) {
+        Queue<Integer> frames = new LinkedList<>();
+        Set<Integer> inMemory = new HashSet<>();
+        int faults = 0;
+
+        System.out.println("\n--- FIFO Page Replacement ---");
+        for (int page : pages) {
+            if (!inMemory.contains(page)) {
+                if (frames.size() == framesCount) {
+                    int removed = frames.poll();
+                    inMemory.remove(removed);
+                    System.out.println("Page " + removed + " removed.");
+                }
+                frames.add(page);
+                inMemory.add(page);
+                faults++;
+                System.out.println("Page " + page + " added. Frames: " + frames);
+            } else {
+                System.out.println("Page " + page + " already in memory. Frames: " + frames);
+            }
+        }
+
+        System.out.println("Total Page Faults: " + faults);
+        System.out.println("Total Hits: " + (pages.length - faults));
+    }
+
+    // -------------------------------------------
+    // LRU Page Replacement
+    // -------------------------------------------
+    public static void lru(int[] pages, int framesCount) {
+        List<Integer> frames = new ArrayList<>();
+        int faults = 0;
+
+        System.out.println("\n--- LRU Page Replacement ---");
+        for (int page : pages) {
+            if (!frames.contains(page)) {
+                if (frames.size() == framesCount) {
+                    int removed = frames.remove(0);
+                    System.out.println("Page " + removed + " removed (LRU).");
+                }
+                frames.add(page);
+                faults++;
+                System.out.println("Page " + page + " added. Frames: " + frames);
+            } else {
+                frames.remove(Integer.valueOf(page));
+                frames.add(page);
+                System.out.println("Page " + page + " accessed (updated position). Frames: " + frames);
+            }
+        }
+
+        System.out.println("Total Page Faults: " + faults);
+        System.out.println("Total Hits: " + (pages.length - faults));
+    }
+
+    // -------------------------------------------
+    // MRU Page Replacement
+    // -------------------------------------------
+    public static void mru(int[] pages, int framesCount) {
+        List<Integer> frames = new ArrayList<>();
+        int faults = 0;
+
+        System.out.println("\n--- MRU Page Replacement ---");
+        for (int page : pages) {
+            if (!frames.contains(page)) {
+                if (frames.size() == framesCount) {
+                    // Remove the most recently used (last one)
+                    int removed = frames.remove(frames.size() - 1);
+                    System.out.println("Page " + removed + " removed (MRU).");
+                }
+                frames.add(page);
+                faults++;
+                System.out.println("Page " + page + " added. Frames: " + frames);
+            } else {
+                // Move accessed page to the end (mark as recently used)
+                frames.remove(Integer.valueOf(page));
+                frames.add(page);
+                System.out.println("Page " + page + " accessed (updated). Frames: " + frames);
+            }
+        }
+
+        System.out.println("Total Page Faults: " + faults);
+        System.out.println("Total Hits: " + (pages.length - faults));
+    }
+
+    // -------------------------------------------
+    // Optimal Page Replacement
+    // -------------------------------------------
+    public static void optimal(int[] pages, int framesCount) {
+        List<Integer> frames = new ArrayList<>();
+        int faults = 0;
+
+        System.out.println("\n--- Optimal Page Replacement ---");
+        for (int i = 0; i < pages.length; i++) {
+            int page = pages[i];
+            if (!frames.contains(page)) {
+                if (frames.size() == framesCount) {
+                    // Find the page that won't be used for the longest time
+                    int indexToRemove = -1;
+                    int farthest = i + 1;
+                    for (int j = 0; j < frames.size(); j++) {
+                        int nextUse = Integer.MAX_VALUE;
+                        for (int k = i + 1; k < pages.length; k++) {
+                            if (frames.get(j) == pages[k]) {
+                                nextUse = k;
+                                break;
+                            }
+                        }
+                        if (nextUse > farthest) {
+                            farthest = nextUse;
+                            indexToRemove = j;
+                        }
+                    }
+                    if (indexToRemove == -1) indexToRemove = 0;
+                    int removed = frames.remove(indexToRemove);
+                    System.out.println("Page " + removed + " removed (Optimal).");
+                }
+                frames.add(page);
+                faults++;
+                System.out.println("Page " + page + " added. Frames: " + frames);
+            } else {
+                System.out.println("Page " + page + " already in memory. Frames: " + frames);
+            }
+        }
+
+        System.out.println("Total Page Faults: " + faults);
+        System.out.println("Total Hits: " + (pages.length - faults));
+    }
+}
